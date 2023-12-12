@@ -117,38 +117,117 @@ from collections import defaultdict
 cka_score = defaultdict(list)
 # %%
 
-for i, layer1 in enumerate(layer_name_for_activation):
-    for j, layer2 in enumerate(layer_name_for_activation):
-        print(layer1, layer2)
-        activation_model1 = get_activation(model_1, images, layer1)[layer1]
-        activation_model2 = get_activation(model_2, images, layer2)[layer2]
-        activation_model1_flatten = activation_model1.view(activation_model1.shape[0], -1)
-        activation_model1_flatten_np = activation_model1_flatten.cpu().numpy()
-        activation_model2_flatten = activation_model2.view(activation_model2.shape[0], -1)
-        activation_model2_flatten_np = activation_model2_flatten.cpu().numpy()
-        # avg_acts1 = np.mean(activation_model1, axis=(1,2))
-        # avg_acts2 = np.mean(activation_model2, axis=(1,2))
-        cka_score[(layer1,layer2)].append(linear_CKA(activation_model1_flatten_np,
-                                                      activation_model2_flatten_np))
-
-
-# %%
-
-activation_model1 = {}
-activation_model2 = {}
-for l in layer_name_for_activation:
-    activation_model1[l] = get_activation(model_1, images, l)[l]
-    activation_model2[l] = get_activation(model_2, images, l)[l]
-
-
+# loop through the test data and calculate the CKA score for each layer
+with torch.no_grad():
+    for i, data in enumerate(testloader):
+        images, labels = data[0].to(device), data[1].to(device)
+        for i, layer1 in enumerate(layer_name_for_activation):
+            for j, layer2 in enumerate(layer_name_for_activation):
+                print(layer1, layer2)
+                activation_model1 = get_activation(model_1, images, layer1)[layer1]
+                activation_model2 = get_activation(model_2, images, layer2)[layer2]
+                activation_model1_flatten = activation_model1.view(activation_model1.shape[0], -1)
+                activation_model1_flatten_np = activation_model1_flatten.cpu().numpy()
+                activation_model2_flatten = activation_model2.view(activation_model2.shape[0], -1)
+                activation_model2_flatten_np = activation_model2_flatten.cpu().numpy()
+                # avg_acts1 = np.mean(activation_model1, axis=(1,2))
+                # avg_acts2 = np.mean(activation_model2, axis=(1,2))
+                cka_score[(layer1,layer2)].append(linear_CKA(activation_model1_flatten_np,
+                                                              activation_model2_flatten_np))
 
 # %%
-layer_name_for_activation = ['relu1', 'relu2', 'relu3', 'relu4']
-activations = {}
-for layer_name in layer_name_for_activation:
-        activations[layer_name] = get_activation(model_1, images, layer_name)[layer_name]
-# %%    
-output_model1 = model_1(images)
-output_model2 = model_2(images)
-print(activation['relu2'].shape)
+import numpy as np
+cka_score_mean = {}
+cka_score_std = {}
+for key in cka_score.keys():
+    cka_list = cka_score[key]
+    mean_value = np.mean(cka_list)
+    std_value = np.std(cka_list)
+    cka_score_mean[key] = mean_value
+    cka_score_std[key] = std_value
+
+# %%
+import matplotlib.pyplot as plt
+data = dict(cka_score_mean)
+layer_names = set()
+
+for key in data.keys():
+    layer_names.update(key)
+n_layers = len(layer_names)
+
+matrix = np.zeros((n_layers, n_layers))
+layer_names_list = list(layer_names)
+for (layer1, layer2), score in data.items():
+    matrix[layer_names_list.index(layer1)][layer_names_list.index(layer2)] = score
+x_labels = layer_name_for_activation.copy()
+y_labels = x_labels.copy()
+plt.figure(figsize=(8, 6))
+ax = plt.matshow(matrix, cmap='coolwarm')
+
+# Set ticks and labels
+plt.xticks(range(len(x_labels)), x_labels, rotation=45)
+plt.yticks(range(len(y_labels)), y_labels)
+
+# Add colorbar
+plt.colorbar()
+
+# Title and labels
+plt.title("CKA Score Heatmap for the Two ML Models")
+plt.xlabel("Model 1 Layer")
+plt.ylabel("Model 2 Layer")
+
+# Show the plot
+plt.tight_layout()
+plt.show()
+# %%
+data = dict(cka_score_std )
+layer_names = set()
+
+for key in data.keys():
+    layer_names.update(key)
+n_layers = len(layer_names)
+
+matrix = np.zeros((n_layers, n_layers))
+layer_names_list = list(layer_names)
+for (layer1, layer2), score in data.items():
+    matrix[layer_names_list.index(layer1)][layer_names_list.index(layer2)] = score
+x_labels = layer_name_for_activation.copy()
+y_labels = x_labels.copy()
+plt.figure(figsize=(8, 6))
+ax = plt.matshow(matrix, cmap='coolwarm')
+
+# Set ticks and labels
+plt.xticks(range(len(x_labels)), x_labels, rotation=45)
+plt.yticks(range(len(y_labels)), y_labels)
+
+# Add colorbar
+plt.colorbar()
+
+# Title and labels
+plt.title("CKA Score Heatmap std. dev. for the Two ML Models")
+plt.xlabel("Model 1 Layer")
+plt.ylabel("Model 2 Layer")
+
+# Show the plot
+plt.tight_layout()
+plt.show()
+# %%
+
+# activation_model1 = {}
+# activation_model2 = {}
+# for l in layer_name_for_activation:
+#     activation_model1[l] = get_activation(model_1, images, l)[l]
+#     activation_model2[l] = get_activation(model_2, images, l)[l]
+
+
+
+# # %%
+# layer_name_for_activation = ['relu1', 'relu2', 'relu3', 'relu4']
+# activations = {}
+# for layer_name in layer_name_for_activation:
+#         activations[layer_name] = get_activation(model_1, images, layer_name)[layer_name]
+# # %%    
+# output_model1 = model_1(images)
+# output_model2 = model_2(images)
+# print(activation['relu2'].shape)
 # %%
