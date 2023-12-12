@@ -1,1 +1,5 @@
 __pycache__/
+data/cifar-10-batches-py/
+data/
+best_model.pth
+models/
